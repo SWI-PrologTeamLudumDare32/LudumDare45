@@ -1,11 +1,7 @@
-# Cooking with Snap
+# LudumDare45
 
-This is a demo of
- 
-  * CHR
-  * Serving CHR, complicated by CHR's need to run in a single thread
-  * interfacing Snap! with Prolog
-  * dealing with Snap! not liking sessions
+This is a fork of PlayingWithProlog/cookingwithsnap
+
 
 ## Install (assumes you have a recent SWI-Prolog)
 
