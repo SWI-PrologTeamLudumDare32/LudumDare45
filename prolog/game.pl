@@ -32,7 +32,11 @@ server(Port) :-
     line/5,
     get_a_line/5,
     inited/1,
-    unmatched_end_stroke/1.
+    unmatched_end_stroke/1,
+    horiz/4,
+    vert/4,
+    corner/6,
+    box/5.
 
 :- http_handler('/drawing', draw_handler , []).
 
@@ -106,7 +110,11 @@ do_end_stroke(_) <=> true.
 
 do_end_draw(S) ==> debug_lines(S).
 do_end_draw(S) \ line(S, _, _, _, _) <=> true.
+do_end_draw(S) \ horiz(S, _, _, _) <=> true.
+do_end_draw(S) \ vert(S, _, _, _) <=> true.
+do_end_draw(S) \ corner(S, _, _, _, _, _) <=> true.
 do_end_draw(S) \ start_draw(S) <=> true.
+do_end_draw(S) \ box(S, _, _, _, _) <=> true.
 do_end_draw(_) <=> true.
 
 % get_foo pattern to get the lines
@@ -125,6 +133,76 @@ init_player(S) :-
     inited(S).
 
 inited(S) \ inited(S) <=> true.
+
+		 /*******************************
+		 *         recognizers          *
+		 *******************************/
+
+% discard short lines
+line(_, X1, Y1, X2, Y2) <=>
+                short(X1, Y1, X2, Y2) |
+                true.
+
+short(X1, Y1, X2, Y2) :-
+    (X1 - X2)*(X1 - X2) + (Y1 - Y2)*(Y1 - Y2) < 256.
+
+line(S, X1, Y1, X2, Y2) ==>
+                X1 < X2,
+                horiz_line(X1, Y1, X2, Y2) |
+                horiz(S, X1, Y1, X2).
+line(S, X1, Y1, X2, Y2) ==>
+                X2 < X1,
+                horiz_line(X1, Y1, X2, Y2) |
+                horiz(S, X2, Y1, X1).
+
+horiz_line(X1, Y1, X2, Y2) :-
+    DX is abs(X1 - X2),
+    DX > 5.0 * abs(Y1 - Y2).
+
+line(S, X1, Y1, X2, Y2) ==>
+                Y1 < Y2,
+                vert_line(X1, Y1, X2, Y2) |
+                vert(S, X1, Y1, Y2).
+line(S, X1, Y1, X2, Y2) ==>
+                Y2 < Y1,
+                vert_line(X1, Y1, X2, Y2) |
+                vert(S, X1, Y2, Y1).
+
+vert_line(X1, Y1, X2, Y2) :-
+    horiz_line(Y1, X1, Y2, X2).
+
+% corners are usual RH coord system (So is Snap!)
+% not comp graphics LH
+horiz(S, XH1, YH, XH2), vert(S, XV, YV1, YV2) ==>
+             short(XH1, YH, XV, YV1) |
+             corner(S, ll, XV, YH, XH2, YV2).
+
+horiz(S, XH1, YH, XH2), vert(S, XV, YV1, YV2) ==>
+             short(XH1, YH, XV, YV2) |
+             corner(S, ul, XV, YH, XH2, YV1).
+
+horiz(S, XH1, YH, XH2), vert(S, XV, YV1, YV2) ==>
+             short(XH2, YH, XV, YV2) |
+             corner(S, ur, XV, YH, XH1, YV1).
+
+horiz(S, XH1, YH, XH2), vert(S, XV, YV1, YV2) ==>
+             short(XH2, YH, XV, YV1) |
+             corner(S, lr, XV, YH, XH1, YV2).
+
+corner(S, ll, LLX , LLY, LLRX, LLUY),
+corner(S, ur, URX, URY, URLX, URLY) <=>
+       short(LLX, LLY, URLX, URLY),
+       short(URX, URY, LLRX, LLUY) |
+       box(S, LLX, LLY, URX, URY).
+
+corner(S, lr, LRX, LRY, LRLX, LRUY),
+corner(S, ul, ULX, ULY, ULRX, ULLY) <=>
+      short(LRX, LRY, ULRX, ULLY),
+      short(ULX, ULY, LRLX, LRUY) |
+      box(S, ULX, LRY, LRX, ULY).
+
+% well drawn box is recognized twice
+box(S, X1, Y1, X2, Y2) \ box(S, X1, Y1, X2, Y2) <=> true.
 
 		 /*******************************
 		 * Debug help                   *
