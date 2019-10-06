@@ -347,7 +347,7 @@ list_html_string(L, Str) :-
 list_html_string([], C, C).
 list_html_string([H|T], In, Out) :-
     atom(H),
-    format(codes(HCodes), '\"~w\"', [H]),
+    format(codes(HCodes), '~w', [H]),
     (   In == []
     ->  Down = HCodes
     ;   append([In, `,`, HCodes], Down)
