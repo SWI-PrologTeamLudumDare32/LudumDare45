@@ -8,7 +8,7 @@ This is a fork of PlayingWithProlog/cookingwithsnap
 1. Download the latest Snap.zip from 
 https://github.com/jmoenig/Snap/releases/tag/v5.1.0
 
-2. unzip in the cookingwithsnap directory, you'll get a directory Snap-5.1.0
+2. unzip in the Ludumdare45 directory, you'll get a directory Snap-5.1.0
 
 ## run
 
