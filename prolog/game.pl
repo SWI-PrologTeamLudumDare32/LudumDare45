@@ -300,6 +300,7 @@ slant_line(S, ur, X3, Y3, X4, Y4) <=>
 % ==================== persistant object collector =========
 %
 
+
 get_all_persistent(S, Persistant) :-
     nb_setval(all_p, []),
     gap(S, P),
@@ -314,7 +315,20 @@ gap(S, _) :-
     fail.
 gap(_, P) :-
     nb_getval(all_p, P).
+/*
+:- chr_constraint temp_persist/2, collect_persist/2, get_persist/2.
 
+get_all_persistant(S, Persistant) :-
+    chr_trace, chr_leash(-all),
+    get_persist(S, Persistant).
+
+persistant(S, Data), get_persist(S, _) ==> temp_persist(S, Data).
+get_persist(S, Persist) <=> collect_persist(S, Persist).
+temp_persist(S, Data), collect_persist(S, Persist) <=>
+       Persist = [Data | Rest],
+       collect_persist(S, Rest).
+collect_persist(_, L) <=> L=[].
+*/
 
 house(S, X1, Y1, X2, Y2) ==>
    W is X2 - X1,
@@ -344,7 +358,7 @@ list_html_string([H|T], In, Out) :-
     format(codes(HCodes), '~w', [H]),
     (   In == []
     ->  Down = HCodes
-    ;   append([In, `,`, HCodes], Down)
+    ;   append([In, `\n`, HCodes], Down)
     ),
     list_html_string(T, Down, Out).
 list_html_string([H|T], In, Out) :-
