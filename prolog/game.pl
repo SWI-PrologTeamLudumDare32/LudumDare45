@@ -296,12 +296,12 @@ slant_line(S, ur, X3, Y3, X4, Y4) <=>
 
 box(S, X1, Y1, X2, Y2),
 triangle(S, hat, XT1, YT1, _, YM, XT2, YT2) <=>
-        short(X1, Y1, XT1, YT1),
+        short(X1, Y2, XT1, YT1),
         short(X2, Y2,  XT2, YT2) |
         house(S, XT1, Y1, XT2, YM).
 box(S, X1, Y1, X2, Y2),
 triangle(S, caret, XT1, YT1, _, YM, XT2, YT2) <=>
-        short(X1, Y1, XT1, YT1),
+        short(X1, Y2, XT1, YT1),
         short(X2, Y2,  XT2, YT2) |
         house(S, XT1, Y1, XT2, YM).
 
