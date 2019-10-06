@@ -36,7 +36,11 @@ server(Port) :-
     horiz/4,
     vert/4,
     corner/6,
-    box/5.
+    box/5,
+    triangle/8,
+    slant_line/6,
+    house/5,
+    rocket/5.
 
 :- http_handler('/drawing', draw_handler , []).
 
@@ -85,7 +89,8 @@ get_dummy(ok).
 
 % reset to the start of game state. Not same as init_player
 % which establishes initial conditions when session first seen
-chr_reset(_) <=> true. % temp, not storing any state long term now
+chr_reset(S) \ house(S, _, _, _, _) <=> true.
+chr_reset(_) <=> true.
 
 % start a 'drawing' - single http set of lines
 start_draw(S) \ x(S, _) <=> true.
@@ -115,6 +120,10 @@ do_end_draw(S) \ vert(S, _, _, _) <=> true.
 do_end_draw(S) \ corner(S, _, _, _, _, _) <=> true.
 do_end_draw(S) \ start_draw(S) <=> true.
 do_end_draw(S) \ box(S, _, _, _, _) <=> true.
+do_end_draw(S) \ triangle(S, _, _, _, _, _, _, _) <=> true.
+do_end_draw(S) \ slant_line(S, _, _, _, _, _) <=> true.
+% house stays
+% rocket stays
 do_end_draw(_) <=> true.
 
 % get_foo pattern to get the lines
@@ -146,6 +155,8 @@ line(_, X1, Y1, X2, Y2) <=>
 short(X1, Y1, X2, Y2) :-
     (X1 - X2)*(X1 - X2) + (Y1 - Y2)*(Y1 - Y2) < 256.
 
+% ============= horizontal vertical lines ==============
+
 line(S, X1, Y1, X2, Y2) ==>
                 X1 < X2,
                 horiz_line(X1, Y1, X2, Y2) |
@@ -171,6 +182,8 @@ line(S, X1, Y1, X2, Y2) ==>
 vert_line(X1, Y1, X2, Y2) :-
     horiz_line(Y1, X1, Y2, X2).
 
+% =============  corner ================
+
 % corners are usual RH coord system (So is Snap!)
 % not comp graphics LH
 horiz(S, XH1, YH, XH2), vert(S, XV, YV1, YV2) ==>
@@ -189,6 +202,8 @@ horiz(S, XH1, YH, XH2), vert(S, XV, YV1, YV2) ==>
              short(XH2, YH, XV, YV1) |
              corner(S, lr, XV, YH, XH1, YV2).
 
+% ======================== box (axis aligned rect) =============
+
 corner(S, ll, LLX , LLY, LLRX, LLUY),
 corner(S, ur, URX, URY, URLX, URLY) <=>
        short(LLX, LLY, URLX, URLY),
@@ -204,6 +219,106 @@ corner(S, ul, ULX, ULY, ULRX, ULLY) <=>
 % well drawn box is recognized twice
 box(S, X1, Y1, X2, Y2) \ box(S, X1, Y1, X2, Y2) <=> true.
 
+% ====================== triangles ==================
+
+line(S, X1, Y1, X2, Y2) ==> X1 < X2,
+                     Y1 < Y2,
+                     \+ horiz_line(X1, Y1, X2, Y2),
+                     \+ vert_line(X1, Y1, X2, Y2) |
+                     slant_line(S, ur, X1, Y1, X2, Y2).
+line(S, X1, Y1, X2, Y2) ==> X1 >= X2,
+                     Y1 >= Y2,
+                     \+ horiz_line(X1, Y1, X2, Y2),
+                     \+ vert_line(X1, Y1, X2, Y2) |
+                     slant_line(S, ur, X2, Y2, X1, Y1).
+line(S, X1, Y1, X2, Y2) ==> X1 < X2,
+                     Y1 >= Y2,
+                     \+ horiz_line(X1, Y1, X2, Y2),
+                     \+ vert_line(X1, Y1, X2, Y2) |
+                     slant_line(S, ul, X1, Y1, X2, Y2).
+line(S, X1, Y1, X2, Y2) ==> X1 >= X2,
+                     Y1 < Y2,
+                     \+ horiz_line(X1, Y1, X2, Y2),
+                     \+ vert_line(X1, Y1, X2, Y2) |
+                     slant_line(S, ul, X2, Y2, X1, Y1).
+
+slant_line(S, ul, XL1, YL1, XL2, YL2),
+slant_line(S, ur, XR1, YR1, XR2, YR2) <=>
+        short(XL2, YL2, XR1, YR1),
+        abs(YL1 - YR2) < 16 |
+        Mid is (XL1 + YL2) / 2,
+        triangle(S, gull, XL1, YL1, Mid, YL2, XR2, YR2).
+
+slant_line(S, ur, XL1, YL1, XL2, YL2),
+slant_line(S, ul, XR1, YR1, XR2, YR2) <=>
+        short(XL2, YL2, XR1, YR1),
+        abs(YL1 - YR2) < 16 |
+        Mid is (XL1 + YL2) / 2,
+        triangle(S, caret, XL1, YL1, Mid, YL2, XR2, YR2).
+
+horiz(S, HX1, HY, HX2) \
+triangle(S, gull, X1, Y1, XM, YM, X2, Y2) <=>
+        short(X1, Y1, HX1, HY),
+        short(X2, Y2, HX2, HY) |
+        triangle(S, pride, X1, Y1, XM, YM, X2, Y2).
+
+horiz(S, HX1, HY, HX2) \
+triangle(S, caret, X1, Y1, XM, YM, X2, Y2) <=>
+        short(X1, Y1, HX1, HY),
+        short(X2, Y2, HX2, HY) |
+        triangle(S, hat, X1, Y1, XM, YM, X2, Y2).
+
+corner(S, ll, LLX , LLY, LLRX, LLUY),
+slant_line(S, ul, X3, Y3, X4, Y4) <=>
+      short(LLX, LLUY, X3, Y3),
+      short(LLRX, LLRX, X4, Y4) |
+      triangle(S, finll, LLX, LLY, LLX, LLUY, LLRX, LLY).
+
+corner(S, lr, LRX, LRY, LRLX, LRUY),
+slant_line(S, ur, X3, Y3, X4, Y4) <=>
+      short(LRX, LRUY, X4, Y4),
+      short(LRLX, LRY, X3, Y3) |
+      triangle(S, finlr, LRLX, LRY, LRX, LRUY, LRX, LRY).
+
+corner(S, ur, URX, URY, URLX, URLY),
+slant_line(S, ul, X3, Y3, X4, Y4) <=>
+     short(URX, URLY, X3, Y3),
+     short(URLX, URY, X4, Y4) |
+     triangle(S, finur, URLX, URY, URX, URY, URX, URLY).
+
+corner(S, ul, ULX, ULY, ULRX, ULLY),
+slant_line(S, ur, X3, Y3, X4, Y4) <=>
+     short(ULX, ULLY, X3, Y3),
+     short(ULRX, ULY, X4, Y4) |
+     triangle(S, finul, ULX, ULLY, ULX, ULY, ULRX, ULY).
+
+% ======================= house ================================
+
+box(S, X1, Y1, X2, Y2),
+triangle(S, hat, XT1, YT1, _, YM, XT2, YT2) <=>
+        short(X1, Y1, XT1, YT1),
+        short(X2, Y2,  XT2, YT2) |
+        house(S, XT1, Y1, XT2, YM).
+box(S, X1, Y1, X2, Y2),
+triangle(S, caret, XT1, YT1, _, YM, XT2, YT2) <=>
+        short(X1, Y1, XT1, YT1),
+        short(X2, Y2,  XT2, YT2) |
+        house(S, XT1, Y1, XT2, YM).
+
+% ============ rocket ==================
+
+% facing right
+box(S, X1, Y1, X2, Y2),
+triangle(S, finll, LLFX, LLFY, _, LLUY, _, _),
+triangle(S, finul, _, B1Y, ULFX, ULFY, _, _),
+triangle(S, right_arrow, _, _, XM, _, XB, YB) <=>
+       X2 - X1 > 2.5 * (Y2 - Y1),
+       short(X1, Y1, ULFX, ULFY),
+       short(X2, Y2, LLFX, LLFY),
+       short(X2, Y2, XB, YB) |
+       rocket(S, X1, B1Y, XM, LLUY).
+
+
 		 /*******************************
 		 * Debug help                   *
 		 *******************************/
@@ -213,7 +328,6 @@ debug_lines(S) :-
     debug(lines, '~w,~w -- ~w,~w', [SX, SY, EX, EY]),
     fail.
 debug_lines(_).
-
 
 debug_constraints(Where) :-
     find_chr_constraint(X),
