@@ -41,7 +41,8 @@ server(Port) :-
     slant_line/6,
     house/5,
     rocket/5,
-    persistant/2.
+    needs_sent/2,
+    sent/1.
 
 :- http_handler('/drawing', draw_handler , []).
 
@@ -306,15 +307,20 @@ get_all_persistent(S, Persistant) :-
     gap(S, P),
 %    findall(X, get_persist(S, X), P),
 %    P = [[house, 1,1,100,100], [rocket, 10, 10, 50, 50]],
-    flatten(P, Persistant).
+    flatten(P, Persistant),
+    sent(S).
 
 gap(S, _) :-
-    find_chr_constraint(persistant(S, Ret)),
+    find_chr_constraint(needs_sent(S, Ret)),
     nb_getval(all_p, OldP),
     nb_setval(all_p, [Ret | OldP]),
     fail.
 gap(_, P) :-
     nb_getval(all_p, P).
+
+sent(S) \ needs_sent(S, _) <=> true.
+sent(_) <=> true.
+
 /*
 :- chr_constraint temp_persist/2, collect_persist/2, get_persist/2.
 
@@ -322,7 +328,7 @@ get_all_persistant(S, Persistant) :-
     chr_trace, chr_leash(-all),
     get_persist(S, Persistant).
 
-persistant(S, Data), get_persist(S, _) ==> temp_persist(S, Data).
+needs_sent(S, Data), get_persist(S, _) ==> temp_persist(S, Data).
 get_persist(S, Persist) <=> collect_persist(S, Persist).
 temp_persist(S, Data), collect_persist(S, Persist) <=>
        Persist = [Data | Rest],
@@ -333,12 +339,12 @@ collect_persist(_, L) <=> L=[].
 house(S, X1, Y1, X2, Y2) ==>
    W is X2 - X1,
    H is Y2 - Y1,
-   persistant(S, [house, X1, Y1, W, H]).
+   needs_sent(S, [house, X1, Y1, W, H]).
 
 rocket(S, X1, Y1, X2, Y2) ==>
    W is X2 - X1,
    H is Y2 - Y1,
-   persistant(S, [rocket, X1, Y1, W, H]).
+   needs_sent(S, [rocket, X1, Y1, W, H]).
 
 list_html_string(L, Str) :-
     list_html_string(L, [], C),
