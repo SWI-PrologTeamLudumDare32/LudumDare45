@@ -40,7 +40,8 @@ server(Port) :-
     triangle/8,
     slant_line/6,
     house/5,
-    rocket/5.
+    rocket/5,
+    persistant/2.
 
 :- http_handler('/drawing', draw_handler , []).
 
@@ -55,12 +56,15 @@ draw_handler(Request) :-
     do_in_chr_thread(start_draw(S), get_dummy(_)),
     maplist(do_stroke_elem(S), Strokes),
     do_in_chr_thread(do_end_draw(S), get_dummy(_)),
+    do_in_chr_thread(true, get_all_persistent(S, Persistant)),
+    list_html_string(Persistant, Response),
     format('Access-Control-Allow-Origin: *~n'),
-    format('Content-type: text/plain~n~nok').
+    format('Content-type: text/plain~n~n~w', [Response]).
 
 do_stroke_elem(S, NString) :-
     number_string(N, NString),
     do_in_chr_thread(do_add_coord(S, N), get_dummy(_)).
+
 
 :- http_handler('/reset', do_reset , []).
 
@@ -90,6 +94,7 @@ get_dummy(ok).
 % reset to the start of game state. Not same as init_player
 % which establishes initial conditions when session first seen
 chr_reset(S) \ house(S, _, _, _, _) <=> true.
+chr_reset(S) \ rocket(S, _, _, _, _) <=> true.
 chr_reset(_) <=> true.
 
 % start a 'drawing' - single http set of lines
@@ -292,6 +297,62 @@ slant_line(S, ur, X3, Y3, X4, Y4) <=>
      short(ULRX, ULY, X4, Y4) |
      triangle(S, finul, ULX, ULLY, ULX, ULY, ULRX, ULY).
 
+% ==================== persistant object collector =========
+%
+
+get_all_persistent(S, Persistant) :-
+    nb_setval(all_p, []),
+    gap(S, P),
+%    findall(X, get_persist(S, X), P),
+%    P = [[house, 1,1,100,100], [rocket, 10, 10, 50, 50]],
+    flatten(P, Persistant).
+
+gap(S, _) :-
+    find_chr_constraint(persistant(S, Ret)),
+    nb_getval(all_p, OldP),
+    nb_setval(all_p, [Ret | OldP]),
+    fail.
+gap(_, P) :-
+    nb_getval(all_p, P).
+
+
+house(S, X1, Y1, X2, Y2) ==>
+   W is X2 - X1,
+   H is Y2 - Y1,
+   persistant(S, [house, X1, Y1, W, H]).
+
+rocket(S, X1, Y1, X2, Y2) ==>
+   W is X2 - X1,
+   H is Y2 - Y1,
+   persistant(S, [rocket, X1, Y1, W, H]).
+
+list_html_string(L, Str) :-
+    list_html_string(L, [], C),
+    string_codes(Str, C).
+
+list_html_string([], C, C).
+list_html_string([H|T], In, Out) :-
+    atom(H),
+    format(codes(HCodes), '\"~w\"', [H]),
+    (   In == []
+    ->  Down = HCodes
+    ;   append([In, `,`, HCodes], Down)
+    ),
+    list_html_string(T, Down, Out).
+list_html_string([H|T], In, Out) :-
+    number(H),
+    format(codes(HCodes), '~w', [H]),
+    (   In == []
+    ->  Down = HCodes
+    ;   append([In, `,`, HCodes], Down)
+    ),
+    list_html_string(T, Down, Out).
+list_html_string([H|T], In, Out) :-
+    var(H),
+    list_html_string(T, In, Out).
+
+
+
 % ======================= house ================================
 
 box(S, X1, Y1, X2, Y2),
@@ -317,6 +378,8 @@ triangle(S, right_arrow, _, _, XM, _, XB, YB) <=>
        short(X2, Y2, LLFX, LLFY),
        short(X2, Y2, XB, YB) |
        rocket(S, X1, B1Y, XM, LLUY).
+
+
 
 
 		 /*******************************
