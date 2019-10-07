@@ -7,7 +7,8 @@
 :- use_module(library(chr)).
 
 
-go :- server(8888).
+go :- server(8888),
+    prolog_ide(thread_monitor).
 
 %!  server(+Port)
 %
@@ -57,8 +58,8 @@ draw_handler(Request) :-
     do_in_chr_thread(start_draw(S), get_dummy(_)),
     maplist(do_stroke_elem(S), Strokes),
     do_in_chr_thread(do_end_draw(S), get_dummy(_)),
-    do_in_chr_thread(true, get_all_persistent(S, Persistant)),
-    list_html_string(Persistant, Response),
+    do_in_chr_thread(true, get_all_persistent(S, Persistent)),
+    list_html_string(Persistent, Response),
     format('Access-Control-Allow-Origin: *~n'),
     format('Content-type: text/plain~n~n~w', [Response]).
 
@@ -298,16 +299,17 @@ slant_line(S, ur, X3, Y3, X4, Y4) <=>
      short(ULRX, ULY, X4, Y4) |
      triangle(S, finul, ULX, ULLY, ULX, ULY, ULRX, ULY).
 
-% ==================== persistant object collector =========
+% ==================== persistent object collector =========
 %
 
+:- if(false).
 
-get_all_persistent(S, Persistant) :-
+get_all_persistent(S, Persistent) :-
     nb_setval(all_p, []),
     gap(S, P),
 %    findall(X, get_persist(S, X), P),
 %    P = [[house, 1,1,100,100], [rocket, 10, 10, 50, 50]],
-    flatten(P, Persistant),
+    flatten(P, Persistent),  % Annie - is this the issue?
     sent(S).
 
 gap(S, _) :-
@@ -318,15 +320,15 @@ gap(S, _) :-
 gap(_, P) :-
     nb_getval(all_p, P).
 
-sent(S) \ needs_sent(S, _) <=> true.
-sent(_) <=> true.
+:- else.
 
-/*
 :- chr_constraint temp_persist/2, collect_persist/2, get_persist/2.
 
-get_all_persistant(S, Persistant) :-
-    chr_trace, chr_leash(-all),
-    get_persist(S, Persistant).
+get_all_persistent(S, Persistent) :-
+    get_persist(S, P),
+    sent(S),
+    flatten(P, Persistent).
+get_all_persistent(_, []).
 
 needs_sent(S, Data), get_persist(S, _) ==> temp_persist(S, Data).
 get_persist(S, Persist) <=> collect_persist(S, Persist).
@@ -334,7 +336,11 @@ temp_persist(S, Data), collect_persist(S, Persist) <=>
        Persist = [Data | Rest],
        collect_persist(S, Rest).
 collect_persist(_, L) <=> L=[].
-*/
+
+:- endif.
+
+sent(S) \ needs_sent(S, _) <=> true.
+sent(_) <=> true.
 
 house(S, X1, Y1, X2, Y2) ==>
    W is X2 - X1,
@@ -356,7 +362,7 @@ list_html_string([H|T], In, Out) :-
     format(codes(HCodes), '~w', [H]),
     (   In == []
     ->  Down = HCodes
-    ;   append([In, `,`, HCodes], Down)
+    ;   append([In, `\n`, HCodes], Down)
     ),
     list_html_string(T, Down, Out).
 list_html_string([H|T], In, Out) :-
@@ -426,7 +432,8 @@ debug_constraints(_).
 create_chr_thread :-
    message_queue_create(_, [ alias(sub) ]),
    message_queue_create(_, [ alias(par) ]),
-   thread_create(polling_sub, _, [ alias(chr) ]).
+   thread_create(polling_sub, _, [ alias(chr),
+           at_exit(debug(lines, 'CHR thread exited', []))]).
 
 polling_sub :-
    % listen for new message on `sub` queue
@@ -439,7 +446,6 @@ polling_sub :-
              'action constraint ~w failed unexpectedly~n',
              [ActionCHR])
    ),
-
    debug_constraints(polling_sub),
    % get the result using the get_foo pattern
    ResultCHR =.. List,
